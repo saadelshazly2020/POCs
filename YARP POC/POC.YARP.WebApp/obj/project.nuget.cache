@@ -1,0 +1,17 @@
+{
+  "version": 2,
+  "dgSpecHash": "60L1EGf7iyKhpsOY3ux67XVN9rWShuluxsiYtVv4RuUgP2XT7gd960g/lFjRqkOtHRIUbdnKzvRcPIvHbT3EYg==",
+  "success": true,
+  "projectFilePath": "D:\\POC\\YARP POC\\POC.YARP.WebApp\\POC.YARP.WebApp.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\saad\\.nuget\\packages\\microsoft.aspnetcore.spaservices.extensions\\6.0.18\\microsoft.aspnetcore.spaservices.extensions.6.0.18.nupkg.sha512",
+    "C:\\Users\\saad\\.nuget\\packages\\microsoft.extensions.fileproviders.abstractions\\6.0.0\\microsoft.extensions.fileproviders.abstractions.6.0.0.nupkg.sha512",
+    "C:\\Users\\saad\\.nuget\\packages\\microsoft.extensions.fileproviders.physical\\6.0.0\\microsoft.extensions.fileproviders.physical.6.0.0.nupkg.sha512",
+    "C:\\Users\\saad\\.nuget\\packages\\microsoft.extensions.filesystemglobbing\\6.0.0\\microsoft.extensions.filesystemglobbing.6.0.0.nupkg.sha512",
+    "C:\\Users\\saad\\.nuget\\packages\\microsoft.extensions.primitives\\6.0.0\\microsoft.extensions.primitives.6.0.0.nupkg.sha512",
+    "C:\\Users\\saad\\.nuget\\packages\\system.io.hashing\\7.0.0\\system.io.hashing.7.0.0.nupkg.sha512",
+    "C:\\Users\\saad\\.nuget\\packages\\system.runtime.compilerservices.unsafe\\6.0.0\\system.runtime.compilerservices.unsafe.6.0.0.nupkg.sha512",
+    "C:\\Users\\saad\\.nuget\\packages\\yarp.reverseproxy\\2.0.1\\yarp.reverseproxy.2.0.1.nupkg.sha512"
+  ],
+  "logs": []
+}

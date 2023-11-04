@@ -1,0 +1,64 @@
+D:\POC\DotNetCoreWithAngular\POC.YARP.API\bin\Debug\net6.0\appsettings.Development.json
+D:\POC\DotNetCoreWithAngular\POC.YARP.API\bin\Debug\net6.0\appsettings.json
+D:\POC\DotNetCoreWithAngular\POC.YARP.API\bin\Debug\net6.0\POC.YARP.API.exe
+D:\POC\DotNetCoreWithAngular\POC.YARP.API\bin\Debug\net6.0\POC.YARP.API.deps.json
+D:\POC\DotNetCoreWithAngular\POC.YARP.API\bin\Debug\net6.0\POC.YARP.API.runtimeconfig.json
+D:\POC\DotNetCoreWithAngular\POC.YARP.API\bin\Debug\net6.0\POC.YARP.API.dll
+D:\POC\DotNetCoreWithAngular\POC.YARP.API\bin\Debug\net6.0\POC.YARP.API.pdb
+D:\POC\DotNetCoreWithAngular\POC.YARP.API\bin\Debug\net6.0\Microsoft.OpenApi.dll
+D:\POC\DotNetCoreWithAngular\POC.YARP.API\bin\Debug\net6.0\Swashbuckle.AspNetCore.Swagger.dll
+D:\POC\DotNetCoreWithAngular\POC.YARP.API\bin\Debug\net6.0\Swashbuckle.AspNetCore.SwaggerGen.dll
+D:\POC\DotNetCoreWithAngular\POC.YARP.API\bin\Debug\net6.0\Swashbuckle.AspNetCore.SwaggerUI.dll
+D:\POC\DotNetCoreWithAngular\POC.YARP.API\obj\Debug\net6.0\POC.YARP.API.csproj.AssemblyReference.cache
+D:\POC\DotNetCoreWithAngular\POC.YARP.API\obj\Debug\net6.0\POC.YARP.API.GeneratedMSBuildEditorConfig.editorconfig
+D:\POC\DotNetCoreWithAngular\POC.YARP.API\obj\Debug\net6.0\POC.YARP.API.AssemblyInfoInputs.cache
+D:\POC\DotNetCoreWithAngular\POC.YARP.API\obj\Debug\net6.0\POC.YARP.API.AssemblyInfo.cs
+D:\POC\DotNetCoreWithAngular\POC.YARP.API\obj\Debug\net6.0\POC.YARP.API.csproj.CoreCompileInputs.cache
+D:\POC\DotNetCoreWithAngular\POC.YARP.API\obj\Debug\net6.0\POC.YARP.API.MvcApplicationPartsAssemblyInfo.cs
+D:\POC\DotNetCoreWithAngular\POC.YARP.API\obj\Debug\net6.0\POC.YARP.API.MvcApplicationPartsAssemblyInfo.cache
+D:\POC\DotNetCoreWithAngular\POC.YARP.API\obj\Debug\net6.0\staticwebassets\msbuild.POC.YARP.API.Microsoft.AspNetCore.StaticWebAssets.props
+D:\POC\DotNetCoreWithAngular\POC.YARP.API\obj\Debug\net6.0\staticwebassets\msbuild.build.POC.YARP.API.props
+D:\POC\DotNetCoreWithAngular\POC.YARP.API\obj\Debug\net6.0\staticwebassets\msbuild.buildMultiTargeting.POC.YARP.API.props
+D:\POC\DotNetCoreWithAngular\POC.YARP.API\obj\Debug\net6.0\staticwebassets\msbuild.buildTransitive.POC.YARP.API.props
+D:\POC\DotNetCoreWithAngular\POC.YARP.API\obj\Debug\net6.0\staticwebassets.pack.json
+D:\POC\DotNetCoreWithAngular\POC.YARP.API\obj\Debug\net6.0\staticwebassets.build.json
+D:\POC\DotNetCoreWithAngular\POC.YARP.API\obj\Debug\net6.0\staticwebassets.development.json
+D:\POC\DotNetCoreWithAngular\POC.YARP.API\obj\Debug\net6.0\scopedcss\bundle\POC.YARP.API.styles.css
+D:\POC\DotNetCoreWithAngular\POC.YARP.API\obj\Debug\net6.0\POC.YARP.API.csproj.CopyComplete
+D:\POC\DotNetCoreWithAngular\POC.YARP.API\obj\Debug\net6.0\POC.YARP.API.dll
+D:\POC\DotNetCoreWithAngular\POC.YARP.API\obj\Debug\net6.0\refint\POC.YARP.API.dll
+D:\POC\DotNetCoreWithAngular\POC.YARP.API\obj\Debug\net6.0\POC.YARP.API.pdb
+D:\POC\DotNetCoreWithAngular\POC.YARP.API\obj\Debug\net6.0\POC.YARP.API.genruntimeconfig.cache
+D:\POC\DotNetCoreWithAngular\POC.YARP.API\obj\Debug\net6.0\ref\POC.YARP.API.dll
+D:\POC\YARP POC\POC.YARP.API\bin\Debug\net6.0\appsettings.Development.json
+D:\POC\YARP POC\POC.YARP.API\bin\Debug\net6.0\appsettings.json
+D:\POC\YARP POC\POC.YARP.API\bin\Debug\net6.0\POC.YARP.API.exe
+D:\POC\YARP POC\POC.YARP.API\bin\Debug\net6.0\POC.YARP.API.deps.json
+D:\POC\YARP POC\POC.YARP.API\bin\Debug\net6.0\POC.YARP.API.runtimeconfig.json
+D:\POC\YARP POC\POC.YARP.API\bin\Debug\net6.0\POC.YARP.API.dll
+D:\POC\YARP POC\POC.YARP.API\bin\Debug\net6.0\POC.YARP.API.pdb
+D:\POC\YARP POC\POC.YARP.API\bin\Debug\net6.0\Microsoft.OpenApi.dll
+D:\POC\YARP POC\POC.YARP.API\bin\Debug\net6.0\Swashbuckle.AspNetCore.Swagger.dll
+D:\POC\YARP POC\POC.YARP.API\bin\Debug\net6.0\Swashbuckle.AspNetCore.SwaggerGen.dll
+D:\POC\YARP POC\POC.YARP.API\bin\Debug\net6.0\Swashbuckle.AspNetCore.SwaggerUI.dll
+D:\POC\YARP POC\POC.YARP.API\obj\Debug\net6.0\POC.YARP.API.csproj.AssemblyReference.cache
+D:\POC\YARP POC\POC.YARP.API\obj\Debug\net6.0\POC.YARP.API.GeneratedMSBuildEditorConfig.editorconfig
+D:\POC\YARP POC\POC.YARP.API\obj\Debug\net6.0\POC.YARP.API.AssemblyInfoInputs.cache
+D:\POC\YARP POC\POC.YARP.API\obj\Debug\net6.0\POC.YARP.API.AssemblyInfo.cs
+D:\POC\YARP POC\POC.YARP.API\obj\Debug\net6.0\POC.YARP.API.csproj.CoreCompileInputs.cache
+D:\POC\YARP POC\POC.YARP.API\obj\Debug\net6.0\POC.YARP.API.MvcApplicationPartsAssemblyInfo.cs
+D:\POC\YARP POC\POC.YARP.API\obj\Debug\net6.0\POC.YARP.API.MvcApplicationPartsAssemblyInfo.cache
+D:\POC\YARP POC\POC.YARP.API\obj\Debug\net6.0\staticwebassets\msbuild.POC.YARP.API.Microsoft.AspNetCore.StaticWebAssets.props
+D:\POC\YARP POC\POC.YARP.API\obj\Debug\net6.0\staticwebassets\msbuild.build.POC.YARP.API.props
+D:\POC\YARP POC\POC.YARP.API\obj\Debug\net6.0\staticwebassets\msbuild.buildMultiTargeting.POC.YARP.API.props
+D:\POC\YARP POC\POC.YARP.API\obj\Debug\net6.0\staticwebassets\msbuild.buildTransitive.POC.YARP.API.props
+D:\POC\YARP POC\POC.YARP.API\obj\Debug\net6.0\staticwebassets.pack.json
+D:\POC\YARP POC\POC.YARP.API\obj\Debug\net6.0\staticwebassets.build.json
+D:\POC\YARP POC\POC.YARP.API\obj\Debug\net6.0\staticwebassets.development.json
+D:\POC\YARP POC\POC.YARP.API\obj\Debug\net6.0\scopedcss\bundle\POC.YARP.API.styles.css
+D:\POC\YARP POC\POC.YARP.API\obj\Debug\net6.0\POC.YARP.API.csproj.CopyComplete
+D:\POC\YARP POC\POC.YARP.API\obj\Debug\net6.0\POC.YARP.API.dll
+D:\POC\YARP POC\POC.YARP.API\obj\Debug\net6.0\refint\POC.YARP.API.dll
+D:\POC\YARP POC\POC.YARP.API\obj\Debug\net6.0\POC.YARP.API.pdb
+D:\POC\YARP POC\POC.YARP.API\obj\Debug\net6.0\POC.YARP.API.genruntimeconfig.cache
+D:\POC\YARP POC\POC.YARP.API\obj\Debug\net6.0\ref\POC.YARP.API.dll
