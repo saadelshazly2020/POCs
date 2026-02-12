@@ -1,0 +1,51 @@
+# .NET
+bin/
+obj/
+*.user
+*.suo
+*.cache
+*.dll
+*.exe
+*.pdb
+*.log
+appsettings.*.json
+!appsettings.json
+
+# Build results
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+bld/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+
+# Visual Studio
+.vs/
+*.vsidx
+*.vssscc
+.vscode/
+
+# Client app build output
+wwwroot/dist/
+
+# Node modules (if any at root)
+node_modules/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Publish folder
+publish/
+
+# User-specific files
+*.rsuser
+*.userprefs
+
+# JetBrains Rider
+.idea/
+*.sln.iml

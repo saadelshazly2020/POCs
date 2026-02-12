@@ -1,0 +1,59 @@
+using Microsoft.EntityFrameworkCore;
+using System;
+
+namespace ReleaseManagmentSystem.Models
+{
+    public class Release
+    {
+        public int Id { get; set; }
+        public string Name { get; set; }
+        public string Status { get; set; }
+        public string Note { get; set; }
+        public DateTime CreatedDate { get; set; }
+        public string CreatedBy { get; set; }
+        public DateTime? UpdatedDate { get; set; }
+        public string AssignedTeam { get; set; }
+        public string Project { get; set; }
+    }
+
+    public class ReleaseDbContext : DbContext
+    {
+        public ReleaseDbContext(DbContextOptions<ReleaseDbContext> options) : base(options)
+        {
+        }
+
+        public DbSet<Release> Releases { get; set; }
+
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            base.OnModelCreating(modelBuilder);
+
+            modelBuilder.Entity<Release>().HasData(
+                new Release
+                {
+                    Id = 1,
+                    Name = "Initial Release",
+                    Status = "Completed",
+                    Note = "First release of the project.",
+                    CreatedDate = DateTime.Now,
+                    CreatedBy = "Admin",
+                    UpdatedDate = null,
+                    AssignedTeam = "Team A",
+                    Project = "Project Alpha"
+                },
+                new Release
+                {
+                    Id = 2,
+                    Name = "Second Release",
+                    Status = "In Progress",
+                    Note = "Working on the second release.",
+                    CreatedDate = DateTime.Now,
+                    CreatedBy = "Admin",
+                    UpdatedDate = null,
+                    AssignedTeam = "Team B",
+                    Project = "Project Beta"
+                }
+            );
+        }
+    }
+}

@@ -1,0 +1,6 @@
+@ReleaseManagement.API_HostAddress = http://localhost:5159
+
+GET {{ReleaseManagement.API_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

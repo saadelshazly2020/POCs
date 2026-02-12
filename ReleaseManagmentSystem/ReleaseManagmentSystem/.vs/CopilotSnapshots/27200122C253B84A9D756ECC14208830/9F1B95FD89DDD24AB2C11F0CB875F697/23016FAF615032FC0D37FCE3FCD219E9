@@ -1,0 +1,32 @@
+﻿using Microsoft.EntityFrameworkCore;
+using System;
+
+namespace ReleaseManagmentSystem.Models
+{
+    public class Release
+    {
+        public int Id { get; set; }
+        public string Name { get; set; }
+        public string Status { get; set; }
+        public string Note { get; set; }
+        public DateTime CreatedDate { get; set; }
+        public string CreatedBy { get; set; }
+        public DateTime? UpdatedDate { get; set; }
+        public string AssignedTeam { get; set; }
+        public string Project { get; set; }
+    }
+
+    public class ReleaseDbContext : DbContext
+    {
+        public ReleaseDbContext(DbContextOptions<ReleaseDbContext> options) : base(options)
+        {
+        }
+
+        public DbSet<Release> Releases { get; set; }
+
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            base.OnModelCreating(modelBuilder);
+        }
+    }
+}
