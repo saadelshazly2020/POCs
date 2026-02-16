@@ -11,8 +11,14 @@ private signalRService: SignalRService;
 
   private rtcConfiguration: RTCConfiguration = {
     iceServers: [
-      { urls: 'stun:stun.l.google.com:19302' },
-      { urls: 'stun:stun1.l.google.com:19302' }
+          {
+              urls: 'stun:147.79.115.80:3478'
+          },
+          {
+              urls: 'turn:147.79.115.80:3478',
+              username: 'webrtcuser',
+              credential: 'StrongPassword123'
+          }
     ]
   };
 

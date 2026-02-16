@@ -18,17 +18,16 @@ export class WebRTCService {
         this.signalRService = signalRService;
         this.localUserId = localUserId;
 
-        // Configure STUN/TURN servers as per requirements
+        // Configure STUN servers for remote connections
+        // Use public STUN servers and allow all ICE candidates (including host, srflx, and relay)
         this.configuration = {
             iceServers: [
                 { urls: 'stun:stun.l.google.com:19302' },
-                { 
-                    urls: 'turn:172.24.32.1:3478', 
-                    username: 'webrtcuser', 
-                    credential: 'StrongPassword123' 
-                }
-            ],
-            iceTransportPolicy: 'relay' as RTCIceTransportPolicy
+                { urls: 'stun:stun1.l.google.com:19302' },
+                { urls: 'stun:stun2.l.google.com:19302' }
+            ]
+            // Removed iceTransportPolicy to allow all connection types (host, srflx, relay)
+            // This enables direct connections when possible, falling back to relay when needed
         };
 
         this.setupSignalRHandlers();

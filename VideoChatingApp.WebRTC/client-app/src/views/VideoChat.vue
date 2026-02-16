@@ -415,13 +415,11 @@ const acceptIncomingCall = async () => {
   if (!webRTCService || !incomingCallerId.value) return;
 
   try {
-    await webRTCService.acceptCall(incomingCallerId.value);
-    showIncomingCall.value = false;
-    showSuccess(`Accepted call from ${incomingCallerId.value}`);
-    isInCall.value = true;
-    
-    // Track the active call
     const callerId = incomingCallerId.value;
+    await webRTCService.acceptCall(callerId);
+    showIncomingCall.value = false;
+    showSuccess(`Accepted call from ${callerId}`);
+    isInCall.value = true;
     incomingCallerId.value = '';
   } catch (error) {
     console.error('Failed to accept call:', error);
