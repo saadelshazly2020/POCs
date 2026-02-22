@@ -3,7 +3,7 @@
     <div class="grid-wrapper" :class="gridClass">
       <!-- Local Video -->
       <div v-if="localStream" class="video-item">
-        <div class="relative rounded-xl overflow-hidden shadow-xl">
+        <div class=" rounded-xl overflow-hidden shadow-xl bg-gray-900">
           <video
             ref="localVideoRef"
             autoplay
@@ -11,14 +11,16 @@
             playsinline
             class="w-full h-full object-cover"
           />
-          <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-3">
-            <div class="flex items-center justify-between">
-              <span class="text-white text-sm font-medium">
-                {{ localUserId }} (You)
-              </span>
-              <span class="badge bg-green-500 text-white text-xs">
-                Local
-              </span>
+          <div class="absolute inset-0 flex flex-col justify-end bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none">
+            <div class="p-3">
+              <div class="flex items-center justify-between">
+                <span class="text-white text-sm font-semibold">
+                  {{ localUserId }} (You)
+                </span>
+                <span class="badge bg-green-500 text-white text-xs font-medium px-2 py-1 rounded">
+                  Local
+                </span>
+              </div>
             </div>
           </div>
         </div>
@@ -30,21 +32,23 @@
         :key="userId"
         class="video-item"
       >
-        <div class="relative rounded-xl overflow-hidden shadow-xl">
+        <div class=" rounded-xl overflow-hidden shadow-xl bg-gray-900">
           <video
             :ref="el => setRemoteVideoRef(userId, el)"
             autoplay
             playsinline
             class="w-full h-full object-cover"
           />
-          <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-3">
-            <div class="flex items-center justify-between">
-              <span class="text-white text-sm font-medium">
-                {{ userId }}
-              </span>
-              <span class="badge bg-blue-500 text-white text-xs">
-                Remote
-              </span>
+          <div class="absolute inset-0 flex flex-col justify-end bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none">
+            <div class="p-3">
+              <div class="flex items-center justify-between">
+                <span class="text-white text-sm font-semibold">
+                  {{ userId }}
+                </span>
+                <span class="badge bg-blue-500 text-white text-xs font-medium px-2 py-1 rounded">
+                  Remote
+                </span>
+              </div>
             </div>
           </div>
         </div>
@@ -128,6 +132,12 @@ onMounted(async () => {
 .video-item {
   @apply aspect-video bg-gray-900 rounded-xl overflow-hidden;
   min-height: 200px;
+  position: relative;
+}
+
+.video-item video {
+  @apply w-full h-full object-cover;
+  display: block;
 }
 
 .no-video-state {
@@ -136,5 +146,10 @@ onMounted(async () => {
 
 video {
   @apply w-full h-full;
+}
+
+.badge {
+  @apply inline-block whitespace-nowrap;
+  z-index: 10;
 }
 </style>
