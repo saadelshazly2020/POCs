@@ -8,6 +8,8 @@ private pendingOffers: Map<string, RTCSessionDescriptionInit> = new Map();
 private activeCalls: Set<string> = new Set();
 private eventHandlers: Map<string, Function[]> = new Map();
 private signalRService: SignalRService;
+private pendingCandidates: Map<string, RTCIceCandidateInit[]> = new Map();
+private remoteDescriptionSet: Map<string, boolean> = new Map();
 
   private rtcConfiguration: RTCConfiguration = {
     iceServers: [
@@ -107,7 +109,11 @@ private signalRService: SignalRService;
       
       if (this.localStream) {
         this.localStream.getTracks().forEach(track => {
-          peerConnection.addTrack(track, this.localStream!);
+          try {
+            peerConnection.addTrack(track, this.localStream!);
+          } catch (e) {
+            console.warn(`Track already added or error adding track:`, e);
+          }
         });
       }
 
@@ -115,7 +121,24 @@ private signalRService: SignalRService;
       await peerConnection.setLocalDescription(offer);
       console.log(`Offer created and set for ${userId}`);
       
-      await this.signalRService.sendOffer(userId, offer.sdp!);
+      // Send offer with retry logic
+      let retries = 0;
+      const maxRetries = 3;
+      
+      while (retries < maxRetries) {
+        try {
+          await this.signalRService.sendOffer(userId, offer.sdp!);
+          console.log(`Offer sent for ${userId}`);
+          break;
+        } catch (error) {
+          retries++;
+          if (retries >= maxRetries) {
+            throw error;
+          }
+          console.warn(`Failed to send offer (attempt ${retries}/${maxRetries}), retrying...`);
+          await new Promise(resolve => setTimeout(resolve, 100 * retries));
+        }
+      }
     } catch (error) {
       console.error(`Failed to create offer for ${userId}:`, error);
     }
@@ -158,26 +181,66 @@ private signalRService: SignalRService;
   }
 
   private async handleOffer(senderId: string, offerSdp: string): Promise<void> {
-    const peerConnection = this.createPeerConnection(senderId);
-
-    if (this.localStream) {
-      this.localStream.getTracks().forEach(track => {
-        peerConnection.addTrack(track, this.localStream!);
-      });
-    }
-
     try {
-      const offer: RTCSessionDescriptionInit = { type: 'offer', sdp: offerSdp };
-      await peerConnection.setRemoteDescription(offer);
-      console.log(`Offer set for ${senderId}`);
+      // Ensure peer connection exists
+      let peerConnection = this.peerConnections.get(senderId);
+      if (!peerConnection) {
+        peerConnection = this.createPeerConnection(senderId);
+      }
 
+      // Add local tracks
+      if (this.localStream) {
+        const pc = peerConnection; // Capture in local variable for closure
+        this.localStream.getTracks().forEach(track => {
+          try {
+            pc.addTrack(track, this.localStream!);
+          } catch (e) {
+            console.warn(`Track already added or error adding track:`, e);
+          }
+        });
+      }
+
+      // Set remote description (offer)
+      const offer: RTCSessionDescriptionInit = { type: 'offer', sdp: offerSdp };
+      
+      if (peerConnection.remoteDescription === null) {
+        await peerConnection.setRemoteDescription(offer);
+        this.remoteDescriptionSet.set(senderId, true);
+        console.log(`Offer set for ${senderId}`);
+        
+        // Flush any pending candidates that arrived before offer
+        await this.flushPendingCandidates(senderId);
+      } else {
+        console.warn(`Remote description already set for ${senderId}, skipping`);
+        return;
+      }
+
+      // Create and send answer
       const answer = await peerConnection.createAnswer();
       await peerConnection.setLocalDescription(answer);
       console.log(`Answer created and set for ${senderId}`);
       
-      await this.signalRService.sendAnswer(senderId, answer.sdp!);
+      // Send answer with retry logic
+      let retries = 0;
+      const maxRetries = 3;
+      
+      while (retries < maxRetries) {
+        try {
+          await this.signalRService.sendAnswer(senderId, answer.sdp!);
+          console.log(`Answer sent for ${senderId}`);
+          break;
+        } catch (error) {
+          retries++;
+          if (retries >= maxRetries) {
+            throw error;
+          }
+          console.warn(`Failed to send answer (attempt ${retries}/${maxRetries}), retrying...`);
+          await new Promise(resolve => setTimeout(resolve, 100 * retries));
+        }
+      }
     } catch (error) {
       console.error(`Failed to handle offer from ${senderId}:`, error);
+      this.closePeerConnection(senderId);
     }
   }
 
@@ -190,8 +253,16 @@ private signalRService: SignalRService;
 
     try {
       const answer: RTCSessionDescriptionInit = { type: 'answer', sdp: answerSdp };
-      await peerConnection.setRemoteDescription(answer);
-      console.log(`Answer set for ${senderId}`);
+      if (peerConnection.remoteDescription === null) {
+        await peerConnection.setRemoteDescription(answer);
+        this.remoteDescriptionSet.set(senderId, true);
+        console.log(`Answer set for ${senderId}`);
+        
+        // Flush any pending candidates
+        await this.flushPendingCandidates(senderId);
+      } else {
+        console.warn(`Remote description already set for ${senderId}, skipping`);
+      }
     } catch (error) {
       console.error(`Failed to set remote description (answer) for ${senderId}:`, error);
     }
@@ -200,18 +271,60 @@ private signalRService: SignalRService;
   private async handleIceCandidate(senderId: string, candidateData: any): Promise<void> {
     const peerConnection = this.peerConnections.get(senderId);
     if (!peerConnection) {
-      console.warn(`No peer connection found for ${senderId}, candidate dropped:`, candidateData);
+      console.warn(`No peer connection found for ${senderId}, queueing candidate`);
+      if (!this.pendingCandidates.has(senderId)) {
+        this.pendingCandidates.set(senderId, []);
+      }
+      this.pendingCandidates.get(senderId)!.push(candidateData);
+      return;
+    }
+
+    // Check if remote description is set
+    const remoteDescSet = this.remoteDescriptionSet.get(senderId) || false;
+    if (!remoteDescSet) {
+      console.warn(`Remote description not set for ${senderId}, queueing candidate`);
+      if (!this.pendingCandidates.has(senderId)) {
+        this.pendingCandidates.set(senderId, []);
+      }
+      this.pendingCandidates.get(senderId)!.push(candidateData);
       return;
     }
 
     try {
-      if (candidateData.candidate) {
+      if (candidateData && candidateData.candidate) {
         await peerConnection.addIceCandidate(new RTCIceCandidate(candidateData));
         console.log(`Added ICE candidate for ${senderId}`);
       }
     } catch (error) {
       console.error(`Failed to add ICE candidate for ${senderId}:`, error);
     }
+  }
+
+  private async flushPendingCandidates(senderId: string): Promise<void> {
+    const candidates = this.pendingCandidates.get(senderId);
+    if (!candidates || candidates.length === 0) {
+      return;
+    }
+
+    const peerConnection = this.peerConnections.get(senderId);
+    if (!peerConnection) {
+      return;
+    }
+
+    console.log(`Flushing ${candidates.length} pending candidates for ${senderId}`);
+    
+    for (const candidateData of candidates) {
+      try {
+        if (candidateData && candidateData.candidate) {
+          await peerConnection.addIceCandidate(new RTCIceCandidate(candidateData));
+          console.log(`Added queued ICE candidate for ${senderId}`);
+        }
+      } catch (error) {
+        console.error(`Failed to add queued ICE candidate for ${senderId}:`, error);
+      }
+    }
+
+    this.pendingCandidates.delete(senderId);
   }
 
   private createPeerConnection(userId: string): RTCPeerConnection {
@@ -268,6 +381,8 @@ private signalRService: SignalRService;
     if (peerConnection) {
       peerConnection.close();
       this.peerConnections.delete(userId);
+      this.pendingCandidates.delete(userId);
+      this.remoteDescriptionSet.delete(userId);
       this.emit('connectionClosed', userId);
     }
   }
@@ -276,6 +391,8 @@ private signalRService: SignalRService;
     this.peerConnections.forEach((_, userId) => {
       this.closePeerConnection(userId);
     });
+    this.pendingCandidates.clear();
+    this.remoteDescriptionSet.clear();
   }
 
   async toggleAudio(enabled: boolean): Promise<void> {
@@ -334,3 +451,4 @@ private signalRService: SignalRService;
     return this.peerConnections;
   }
 }
+
