@@ -49,8 +49,7 @@ app.UseCors("AllowAll");
 
 // Serve static files from wwwroot
 app.UseStaticFiles();
-app.UseSpaStaticFiles();
-// Map SignalR hub
+app.UseSpaStaticFiles();// Map SignalR hub
 app.MapHub<VideoCallHub>("/videocallhub");
 
 // Configure SPA

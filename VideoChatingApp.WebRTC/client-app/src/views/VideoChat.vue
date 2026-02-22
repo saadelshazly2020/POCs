@@ -218,6 +218,7 @@ import { ref, reactive, onMounted, onUnmounted } from 'vue';
 import { SignalRService } from '../services/signalr.service';
 import { WebRTCService } from '../services/webrtc.service';
 import { User } from '../models/user.model';
+import { getHubUrl } from '../utils/config';
 import AppHeader from '../components/AppHeader.vue';
 import UserList from '../components/UserList.vue';
 import VideoGrid from '../components/VideoGrid.vue';
@@ -252,7 +253,7 @@ let webRTCService: WebRTCService | null = null;
 // Initialize SignalR
 const initializeSignalR = async () => {
   try {
-    signalRService = new SignalRService('/videocallhub');
+      signalRService = new SignalRService(getHubUrl());;
     
     signalRService.on('connected', () => {
       isConnected.value = true;

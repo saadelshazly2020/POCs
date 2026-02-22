@@ -6,11 +6,16 @@ export class SignalRService {
   private eventHandlers: Map<string, Function[]> = new Map();
 
   constructor(hubUrl: string) {
-    this.connection = new signalR.HubConnectionBuilder()
-      .withUrl(hubUrl)
-      .withAutomaticReconnect()
-      .configureLogging(signalR.LogLevel.Information)
-      .build();
+      const url = hubUrl || '/videocallhub';
+
+      this.connection = new signalR.HubConnectionBuilder()
+          .withUrl(url, {
+              withCredentials: true,
+              transport: signalR.HttpTransportType.WebSockets | signalR.HttpTransportType.LongPolling
+          })
+          .withAutomaticReconnect([0, 1000, 2000, 5000, 10000])
+          .configureLogging(signalR.LogLevel.Information)
+          .build();
 
     this.setupConnectionEvents();
   }

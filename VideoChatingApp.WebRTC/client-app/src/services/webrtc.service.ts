@@ -11,14 +11,20 @@ private signalRService: SignalRService;
 
   private rtcConfiguration: RTCConfiguration = {
     iceServers: [
-          {
-              urls: 'stun:147.79.115.80:3478'
-          },
-          {
-              urls: 'turn:147.79.115.80:3478',
-              username: 'webrtcuser',
-              credential: 'StrongPassword123'
-          }
+      {
+        urls: [
+          'stun:stun.l.google.com:19302',
+          'stun:stun1.l.google.com:19302',
+          'stun:stun2.l.google.com:19302',
+          'stun:stun3.l.google.com:19302',
+          'stun:stun4.l.google.com:19302'
+        ]
+      },
+      {
+        urls: [
+          'stun:stun.services.mozilla.com:3478'
+        ]
+      }
     ]
   };
 
@@ -76,6 +82,12 @@ private signalRService: SignalRService;
     this.signalRService.on('ReceiveIceCandidate', async (senderId: string, candidate: any) => {
       await this.handleIceCandidate(senderId, candidate);
     });
+
+    this.signalRService.on('UserDisconnected', (userId: string) => {
+      console.log(`User ${userId} disconnected`);
+      this.closePeerConnection(userId);
+      this.emit('userDisconnected', userId);
+    });
   }
 
   async initLocalMedia(constraints: MediaConstraints): Promise<MediaStream> {
@@ -90,17 +102,23 @@ private signalRService: SignalRService;
   }
 
   async createOfferForUser(userId: string): Promise<void> {
-    const peerConnection = this.createPeerConnection(userId);
-    
-    if (this.localStream) {
-      this.localStream.getTracks().forEach(track => {
-        peerConnection.addTrack(track, this.localStream!);
-      });
-    }
+    try {
+      const peerConnection = this.createPeerConnection(userId);
+      
+      if (this.localStream) {
+        this.localStream.getTracks().forEach(track => {
+          peerConnection.addTrack(track, this.localStream!);
+        });
+      }
 
-    const offer = await peerConnection.createOffer();
-    await peerConnection.setLocalDescription(offer);
-    await this.signalRService.sendOffer(userId, offer.sdp!);
+      const offer = await peerConnection.createOffer();
+      await peerConnection.setLocalDescription(offer);
+      console.log(`Offer created and set for ${userId}`);
+      
+      await this.signalRService.sendOffer(userId, offer.sdp!);
+    } catch (error) {
+      console.error(`Failed to create offer for ${userId}:`, error);
+    }
   }
 
   async acceptCall(senderId: string): Promise<void> {
@@ -148,26 +166,51 @@ private signalRService: SignalRService;
       });
     }
 
-    const offer: RTCSessionDescriptionInit = { type: 'offer', sdp: offerSdp };
-    await peerConnection.setRemoteDescription(offer);
+    try {
+      const offer: RTCSessionDescriptionInit = { type: 'offer', sdp: offerSdp };
+      await peerConnection.setRemoteDescription(offer);
+      console.log(`Offer set for ${senderId}`);
 
-    const answer = await peerConnection.createAnswer();
-    await peerConnection.setLocalDescription(answer);
-    await this.signalRService.sendAnswer(senderId, answer.sdp!);
+      const answer = await peerConnection.createAnswer();
+      await peerConnection.setLocalDescription(answer);
+      console.log(`Answer created and set for ${senderId}`);
+      
+      await this.signalRService.sendAnswer(senderId, answer.sdp!);
+    } catch (error) {
+      console.error(`Failed to handle offer from ${senderId}:`, error);
+    }
   }
 
   private async handleAnswer(senderId: string, answerSdp: string): Promise<void> {
     const peerConnection = this.peerConnections.get(senderId);
-    if (peerConnection) {
+    if (!peerConnection) {
+      console.error(`No peer connection found for ${senderId} when handling answer`);
+      return;
+    }
+
+    try {
       const answer: RTCSessionDescriptionInit = { type: 'answer', sdp: answerSdp };
       await peerConnection.setRemoteDescription(answer);
+      console.log(`Answer set for ${senderId}`);
+    } catch (error) {
+      console.error(`Failed to set remote description (answer) for ${senderId}:`, error);
     }
   }
 
   private async handleIceCandidate(senderId: string, candidateData: any): Promise<void> {
     const peerConnection = this.peerConnections.get(senderId);
-    if (peerConnection) {
-      await peerConnection.addIceCandidate(new RTCIceCandidate(candidateData));
+    if (!peerConnection) {
+      console.warn(`No peer connection found for ${senderId}, candidate dropped:`, candidateData);
+      return;
+    }
+
+    try {
+      if (candidateData.candidate) {
+        await peerConnection.addIceCandidate(new RTCIceCandidate(candidateData));
+        console.log(`Added ICE candidate for ${senderId}`);
+      }
+    } catch (error) {
+      console.error(`Failed to add ICE candidate for ${senderId}:`, error);
     }
   }
 
@@ -180,7 +223,10 @@ private signalRService: SignalRService;
 
     peerConnection.onicecandidate = (event) => {
       if (event.candidate) {
+        console.log('New ICE candidate:', event.candidate.candidate);
         this.signalRService.sendIceCandidate(userId, event.candidate.toJSON());
+      } else {
+        console.log('ICE candidate gathering complete');
       }
     };
 
@@ -202,6 +248,15 @@ private signalRService: SignalRService;
 
     peerConnection.oniceconnectionstatechange = () => {
       console.log(`ICE connection state with ${userId}:`, peerConnection.iceConnectionState);
+      console.log(`Connection state with ${userId}:`, peerConnection.connectionState);
+      console.log(`Signaling state with ${userId}:`, peerConnection.signalingState);
+      
+      // Log detailed connection info
+      if (peerConnection.iceConnectionState === 'failed') {
+        console.error(`ICE connection FAILED with ${userId} - checking logs above`);
+        console.error('Current connection state:', peerConnection.connectionState);
+        console.error('Signaling state:', peerConnection.signalingState);
+      }
     };
 
     this.peerConnections.set(userId, peerConnection);
