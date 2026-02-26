@@ -1,13 +1,60 @@
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
 using VideoChatingApp.WebRTC.Core.Interfaces;
+using VideoChatingApp.WebRTC.Core.Services;
+using VideoChatingApp.WebRTC.Data;
 using VideoChatingApp.WebRTC.Hubs;
 using VideoChatingApp.WebRTC.Managers;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Add Database
+builder.Services.AddDbContext<ApplicationDbContext>(options =>
+    options.UseSqlite("Data Source=app.db"));
+
 // Add services to the container
 builder.Services.AddSignalR();
+builder.Services.AddControllers();
+
+// Add Authentication
+var jwtKey = builder.Configuration["Jwt:Key"] ?? "your-secret-key-change-this-in-production-environment";
+var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "VideoChatingApp";
+var jwtAudience = builder.Configuration["Jwt:Audience"] ?? "VideoChatingAppUsers";
+
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            ValidIssuer = jwtIssuer,
+            ValidAudience = jwtAudience,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
+        };
+        
+        // Support SignalR JWT from query string
+        options.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = context =>
+            {
+                var accessToken = context.Request.Query["access_token"];
+                if (!string.IsNullOrEmpty(accessToken))
+                {
+                    context.Token = accessToken;
+                }
+                return Task.CompletedTask;
+            }
+        };
+    });
 
 // Register application services
+builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IFriendshipService, FriendshipService>();
 builder.Services.AddSingleton<IUserManager, UserManager>();
 builder.Services.AddSingleton<IRoomManager, RoomManager>();
 
@@ -19,7 +66,7 @@ builder.Services.AddCors(options =>
         policy.WithOrigins(
             "http://localhost:3000", 
             "https://localhost:3000",
-             "https://4e97-194-238-97-224.ngrok-free.app",
+            "https://4e97-194-238-97-224.ngrok-free.app",
             "http://localhost:5274",
             "https://localhost:5274"
         )
@@ -44,13 +91,26 @@ builder.Services.AddLogging(logging =>
 
 var app = builder.Build();
 
+// Apply migrations
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    db.Database.Migrate();
+}
+
 // Configure the HTTP request pipeline
+app.UseRouting();
 app.UseCors("AllowAll");
+app.UseAuthentication();
+app.UseAuthorization();
 
 // Serve static files from wwwroot
 app.UseStaticFiles();
 app.UseSpaStaticFiles();// Map SignalR hub
 app.MapHub<VideoCallHub>("/videocallhub");
+
+// Map API controllers
+app.MapControllers();
 
 // Configure SPA
 app.UseSpa(spa =>
