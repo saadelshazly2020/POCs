@@ -55,8 +55,12 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 // Register application services
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IFriendshipService, FriendshipService>();
+builder.Services.AddScoped<IChatService, ChatService>();
 builder.Services.AddSingleton<IUserManager, UserManager>();
 builder.Services.AddSingleton<IRoomManager, RoomManager>();
+
+// Add SignalR user-connection mapping for chat
+builder.Services.AddSingleton<IDictionary<int, string>>(new Dictionary<int, string>());
 
 // Add CORS for development
 builder.Services.AddCors(options =>

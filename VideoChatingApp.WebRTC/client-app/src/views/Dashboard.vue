@@ -74,7 +74,45 @@
         <div class="lg:col-span-2">
           <!-- Friends Tab -->
           <div v-if="activeTab === 'friends'">
-            <FriendsList @call-friend="handleCallFriend" />
+            <FriendsList 
+              @call-friend="handleCallFriend"
+              @chat-friend="openChatWithFriend"
+            />
+          </div>
+
+          <!-- Chat Tab -->
+          <div v-if="activeTab === 'chat'" class="grid grid-cols-1 lg:grid-cols-2 gap-4 h-[600px]">
+            <!-- Conversations List -->
+            <div class="h-full overflow-hidden">
+              <ConversationsList
+                ref="conversationsListRef"
+                :selected-user-id="selectedChatUserId || undefined"
+                @open-chat="handleChatOpen"
+              />
+            </div>
+
+            <!-- Chat Window -->
+            <div class="h-full overflow-hidden" v-if="selectedChatUserId">
+              <ChatWindow
+                :user-id="selectedChatUserId"
+                :user-name="selectedChatUserName"
+                :is-online="selectedChatUserOnline"
+                @close="handleCloseChat"
+                @video-call="handleVideoCallFromChat"
+                @update-unread-count="handleUpdateUnreadCount"
+              />
+            </div>
+            
+            <!-- Empty State -->
+            <div v-else class="h-full flex items-center justify-center bg-gray-50 rounded-xl">
+              <div class="text-center">
+                <svg class="mx-auto h-16 w-16 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                </svg>
+                <p class="text-gray-500 font-semibold">Select a conversation</p>
+                <p class="text-gray-400 text-sm mt-2">Choose a friend to start chatting</p>
+              </div>
+            </div>
           </div>
 
           <!-- Requests Tab -->
@@ -173,6 +211,18 @@
                 </div>
                 <span class="text-2xl font-bold text-green-600">{{ onlineFriendsCount }}</span>
               </div>
+
+              <div class="flex items-center justify-between p-3 bg-purple-50 rounded-lg">
+                <div class="flex items-center gap-2">
+                  <div class="w-8 h-8 bg-purple-500 rounded-lg flex items-center justify-center">
+                    <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                    </svg>
+                  </div>
+                  <span class="font-semibold text-gray-700">Unread</span>
+                </div>
+                <span class="text-2xl font-bold text-purple-600">{{ totalUnreadCount }}</span>
+              </div>
             </div>
           </div>
 
@@ -180,6 +230,19 @@
           <div class="bg-white rounded-xl shadow-lg p-6">
             <h3 class="text-lg font-bold text-gray-800 mb-4">Quick Actions</h3>
             <div class="space-y-2">
+              <button
+                @click="activeTab = 'chat'"
+                class="w-full p-3 text-left bg-gradient-to-r from-purple-50 to-pink-50 hover:from-purple-100 hover:to-pink-100 rounded-lg transition flex items-center gap-3"
+              >
+                <svg class="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                </svg>
+                <span class="font-semibold text-gray-700">Chat with Friends</span>
+                <span v-if="totalUnreadCount > 0" class="ml-auto bg-purple-600 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+                  {{ totalUnreadCount }}
+                </span>
+              </button>
+
               <button
                 @click="activeTab = 'search'"
                 class="w-full p-3 text-left bg-gradient-to-r from-blue-50 to-purple-50 hover:from-blue-100 hover:to-purple-100 rounded-lg transition flex items-center gap-3"
@@ -212,18 +275,28 @@ import { ref, computed, onMounted, h } from 'vue';
 import { useRouter } from 'vue-router';
 import { authService } from '@/services/auth.service';
 import { friendshipService } from '@/services/friendship.service';
+import { chatService } from '@/services/chat.service';
 import FriendsList from '@/components/FriendsList.vue';
 import FriendRequests from '@/components/FriendRequests.vue';
 import UserSearch from '@/components/UserSearch.vue';
+import ConversationsList from '@/components/ConversationsList.vue';
+import ChatWindow from '@/components/ChatWindow.vue';
 
 const router = useRouter();
-const activeTab = ref<'friends' | 'requests' | 'search' | 'video'>('friends');
+const activeTab = ref<'friends' | 'chat' | 'requests' | 'search' | 'video'>('friends');
 const roomIdInput = ref('');
 
 const currentUser = computed(() => authService.getUser());
 const friendsCount = ref(0);
 const pendingRequestsCount = ref(0);
 const onlineFriendsCount = ref(0);
+const totalUnreadCount = ref(0);
+
+// Chat state
+const selectedChatUserId = ref<number | null>(null);
+const selectedChatUserName = ref<string>('');
+const selectedChatUserOnline = ref<boolean>(false);
+const conversationsListRef = ref();
 
 // Icons as components
 const FriendsIcon = () => h('svg', {
@@ -232,6 +305,18 @@ const FriendsIcon = () => h('svg', {
   viewBox: '0 0 20 20'
 }, h('path', {
   d: 'M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z'
+}));
+
+const ChatIcon = () => h('svg', {
+  class: 'w-5 h-5',
+  fill: 'none',
+  stroke: 'currentColor',
+  viewBox: '0 0 24 24'
+}, h('path', {
+  'stroke-linecap': 'round',
+  'stroke-linejoin': 'round',
+  'stroke-width': '2',
+  d: 'M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z'
 }));
 
 const RequestsIcon = () => h('svg', {
@@ -272,20 +357,23 @@ const VideoIcon = () => h('svg', {
 
 const tabs = computed(() => [
   { id: 'friends', label: 'Friends', icon: FriendsIcon, badge: 0 },
+  { id: 'chat', label: 'Chat', icon: ChatIcon, badge: totalUnreadCount.value },
   { id: 'requests', label: 'Requests', icon: RequestsIcon, badge: pendingRequestsCount.value },
   { id: 'search', label: 'Search', icon: SearchIcon, badge: 0 },
   { id: 'video', label: 'Video Chat', icon: VideoIcon, badge: 0 }
 ]);
 
 const loadStats = async () => {
-  const [friends, requests] = await Promise.all([
+  const [friends, requests, unreadCount] = await Promise.all([
     friendshipService.getFriends(),
-    friendshipService.getPendingRequests()
+    friendshipService.getPendingRequests(),
+    chatService.getTotalUnreadCount()
   ]);
 
   friendsCount.value = friends.length;
   pendingRequestsCount.value = requests.length;
   onlineFriendsCount.value = friends.filter(f => f.isOnline).length;
+  totalUnreadCount.value = unreadCount;
 };
 
 const handleLogout = async () => {
@@ -297,6 +385,36 @@ const handleCallFriend = (friendId: number, friendName: string) => {
   // TODO: Implement video call initiation
   console.log('Calling friend:', friendId, friendName);
   router.push(`/video-chat?callUser=${friendId}`);
+};
+
+const openChatWithFriend = (friendId: number, friendName: string, isOnline: boolean) => {
+  selectedChatUserId.value = friendId;
+  selectedChatUserName.value = friendName;
+  selectedChatUserOnline.value = isOnline;
+  activeTab.value = 'chat';
+};
+
+const handleChatOpen = (userId: number, userName: string) => {
+  selectedChatUserId.value = userId;
+  selectedChatUserName.value = userName;
+  // Find if user is online from friends list
+  selectedChatUserOnline.value = false;
+};
+
+const handleCloseChat = () => {
+  selectedChatUserId.value = null;
+  selectedChatUserName.value = '';
+};
+
+const handleUpdateUnreadCount = async () => {
+  totalUnreadCount.value = await chatService.getTotalUnreadCount();
+  if (conversationsListRef.value) {
+    conversationsListRef.value.refreshConversations();
+  }
+};
+
+const handleVideoCallFromChat = (userId: number) => {
+  router.push(`/video-chat?callUser=${userId}`);
 };
 
 const joinRoom = () => {

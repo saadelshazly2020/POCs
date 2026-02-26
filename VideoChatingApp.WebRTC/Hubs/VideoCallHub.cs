@@ -9,15 +9,49 @@ public class VideoCallHub : Hub
     private readonly IUserManager _userManager;
     private readonly IRoomManager _roomManager;
     private readonly ILogger<VideoCallHub> _logger;
+    private readonly IDictionary<int, string> _chatUserConnections;
 
     public VideoCallHub(
         IUserManager userManager,
         IRoomManager roomManager,
-        ILogger<VideoCallHub> logger)
+        ILogger<VideoCallHub> logger,
+        IDictionary<int, string> chatUserConnections)
     {
         _userManager = userManager;
         _roomManager = roomManager;
         _logger = logger;
+        _chatUserConnections = chatUserConnections;
+    }
+
+    // New method for chat-specific user registration (with database user ID)
+    public async Task RegisterChatUser(int userId)
+    {
+        try
+        {
+            var connectionId = Context.ConnectionId;
+            
+            // Remove old connection if exists
+            var oldConnection = _chatUserConnections.FirstOrDefault(x => x.Key == userId);
+            if (oldConnection.Value != null)
+            {
+                _chatUserConnections.Remove(oldConnection.Key);
+            }
+            
+            // Add new connection
+            _chatUserConnections[userId] = connectionId;
+            
+            _logger.LogInformation("Chat user {UserId} registered with connection {ConnectionId}", userId, connectionId);
+            
+            await Clients.Caller.SendAsync("ChatUserRegistered", userId);
+            
+            // Notify all online users about this user's status
+            await Clients.All.SendAsync("UserOnlineStatusChanged", userId, true);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error during chat user registration for {UserId}", userId);
+            await Clients.Caller.SendAsync("Error", "Chat registration failed");
+        }
     }
 
     public async Task RegisterUser(string userId)
@@ -432,6 +466,19 @@ public class VideoCallHub : Hub
 
                 // Notify all clients about disconnection
                 await Clients.Others.SendAsync("UserDisconnected", user.UserId);
+            }
+            
+            // Handle chat user disconnection
+            var chatUser = _chatUserConnections.FirstOrDefault(x => x.Value == Context.ConnectionId);
+            if (chatUser.Key != 0)
+            {
+                _logger.LogInformation("Chat user {UserId} disconnecting from connection {ConnectionId}", 
+                    chatUser.Key, Context.ConnectionId);
+                    
+                _chatUserConnections.Remove(chatUser.Key);
+                
+                // Notify all clients about user going offline
+                await Clients.All.SendAsync("UserOnlineStatusChanged", chatUser.Key, false);
             }
         }
         catch (Exception ex)

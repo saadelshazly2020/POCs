@@ -13,6 +13,8 @@ public class ApplicationDbContext : DbContext
     public DbSet<User> Users { get; set; } = null!;
     public DbSet<Friendship> Friendships { get; set; } = null!;
     public DbSet<FriendshipRequest> FriendshipRequests { get; set; } = null!;
+    public DbSet<ChatMessage> ChatMessages { get; set; } = null!;
+    public DbSet<Conversation> Conversations { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -116,6 +118,75 @@ public class ApplicationDbContext : DbContext
             entity.HasIndex(fr => fr.ReceiverId);
             entity.HasIndex(fr => fr.Status);
             entity.HasIndex(fr => new { fr.SenderId, fr.ReceiverId, fr.Status });
+        });
+
+        // Configure ChatMessage entity
+        modelBuilder.Entity<ChatMessage>(entity =>
+        {
+            entity.HasKey(cm => cm.Id);
+
+            entity.Property(cm => cm.Content)
+                .IsRequired()
+                .HasMaxLength(4000);
+
+            entity.Property(cm => cm.AttachmentUrl)
+                .HasMaxLength(500);
+
+            entity.Property(cm => cm.AttachmentType)
+                .HasMaxLength(50);
+
+            entity.Property(cm => cm.SentAt)
+                .IsRequired();
+
+            // Configure Sender relationship
+            entity.HasOne(cm => cm.Sender)
+                .WithMany()
+                .HasForeignKey(cm => cm.SenderId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Configure Receiver relationship
+            entity.HasOne(cm => cm.Receiver)
+                .WithMany()
+                .HasForeignKey(cm => cm.ReceiverId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Add indexes for better query performance
+            entity.HasIndex(cm => cm.SenderId);
+            entity.HasIndex(cm => cm.ReceiverId);
+            entity.HasIndex(cm => cm.SentAt);
+            entity.HasIndex(cm => new { cm.SenderId, cm.ReceiverId, cm.SentAt });
+            entity.HasIndex(cm => cm.IsRead);
+        });
+
+        // Configure Conversation entity
+        modelBuilder.Entity<Conversation>(entity =>
+        {
+            entity.HasKey(c => c.Id);
+
+            entity.Property(c => c.CreatedAt)
+                .IsRequired();
+
+            entity.Property(c => c.LastMessageAt)
+                .IsRequired();
+
+            // Configure User1 relationship
+            entity.HasOne(c => c.User1)
+                .WithMany()
+                .HasForeignKey(c => c.User1Id)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Configure User2 relationship
+            entity.HasOne(c => c.User2)
+                .WithMany()
+                .HasForeignKey(c => c.User2Id)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Add unique constraint to prevent duplicate conversations
+            entity.HasIndex(c => new { c.User1Id, c.User2Id })
+                .IsUnique();
+
+            // Add index for better query performance
+            entity.HasIndex(c => c.LastMessageAt);
         });
     }
 }
