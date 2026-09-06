@@ -215,8 +215,10 @@
 
 <script setup lang="ts">
 import { ref, reactive, onMounted, onUnmounted } from 'vue';
+import { useRoute } from 'vue-router';
 import { SignalRService } from '../services/signalr.service';
 import { WebRTCService } from '../services/webrtc.service';
+import { authService } from '../services/auth.service';
 import { User } from '../models/user.model';
 import { getHubUrl } from '../utils/config';
 import AppHeader from '../components/AppHeader.vue';
@@ -245,6 +247,10 @@ const showIncomingCall = ref<boolean>(false);
 const incomingCallerId = ref<string>('');
 const showOutgoingCall = ref<boolean>(false);
 const outgoingCalleeId = ref<string>('');
+
+// Friend to dial automatically (comes from ?callUser= on the chat tab)
+const route = useRoute();
+const pendingCallTarget = ref<string>('');
 
 // Services
 let signalRService: SignalRService;
@@ -385,6 +391,13 @@ const registerUser = async () => {
       video: true,
       audio: true
     });
+
+    // Dial automatically when coming from a chat "Call" button
+    if (pendingCallTarget.value) {
+      const targetId = pendingCallTarget.value;
+      pendingCallTarget.value = '';
+      await callUser(targetId);
+    }
 
   } catch (error) {
     console.error('Registration failed:', error);
@@ -565,6 +578,19 @@ const clearMessages = () => {
 // Lifecycle
 onMounted(async () => {
   await initializeSignalR();
+
+  // Signed-in users are registered automatically so calls can be routed to them
+  const currentUser = authService.getUser();
+  if (!currentUser) return;
+
+  userId.value = String(currentUser.id);
+
+  const callUserParam = route.query.callUser;
+  if (callUserParam && String(callUserParam) !== userId.value) {
+    pendingCallTarget.value = String(callUserParam);
+  }
+
+  await registerUser();
 });
 
 onUnmounted(() => {

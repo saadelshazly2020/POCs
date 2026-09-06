@@ -100,6 +100,29 @@ public class UserManager : IUserManager
         return connectionId;
     }
 
+    public bool SetCallStatus(string userId, bool inCall)
+    {
+        if (string.IsNullOrWhiteSpace(userId)) return false;
+
+        var user = GetUserByUserId(userId);
+        if (user == null)
+        {
+            _logger.LogDebug("Cannot set call status for unknown user {UserId}", userId);
+            return false;
+        }
+
+        user.IsInCall = inCall;
+        return true;
+    }
+
+    public bool IsInCall(string userId)
+    {
+        if (string.IsNullOrWhiteSpace(userId)) return false;
+
+        var user = GetUserByUserId(userId);
+        return user != null && user.IsInCall;
+    }
+
     public bool UpdateUserRoom(string userId, string? roomId)
     {
         try

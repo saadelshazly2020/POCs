@@ -67,6 +67,23 @@ export class AuthService {
   }
 
   async logout(): Promise<void> {
+    const user = this.user.value;
+
+    if (user) {
+      try {
+        await fetch('/api/auth/logout', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${this.token.value}`
+          },
+          body: JSON.stringify({ userId: user.id })
+        });
+      } catch (error) {
+        console.error('Logout error:', error);
+      }
+    }
+
     this.token.value = null;
     this.user.value = null;
     localStorage.removeItem('auth_token');

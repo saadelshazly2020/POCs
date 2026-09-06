@@ -15,6 +15,9 @@ public class ApplicationDbContext : DbContext
     public DbSet<FriendshipRequest> FriendshipRequests { get; set; } = null!;
     public DbSet<ChatMessage> ChatMessages { get; set; } = null!;
     public DbSet<Conversation> Conversations { get; set; } = null!;
+    public DbSet<Post> Posts { get; set; } = null!;
+    public DbSet<PostReaction> PostReactions { get; set; } = null!;
+    public DbSet<PostComment> PostComments { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -156,6 +159,77 @@ public class ApplicationDbContext : DbContext
             entity.HasIndex(cm => cm.SentAt);
             entity.HasIndex(cm => new { cm.SenderId, cm.ReceiverId, cm.SentAt });
             entity.HasIndex(cm => cm.IsRead);
+        });
+
+        // Configure Post entity
+        modelBuilder.Entity<Post>(entity =>
+        {
+            entity.HasKey(p => p.Id);
+
+            entity.Property(p => p.Content)
+                .IsRequired()
+                .HasMaxLength(2000);
+
+            entity.Property(p => p.ImageUrl)
+                .HasMaxLength(500);
+
+            entity.HasOne(p => p.Author)
+                .WithMany(u => u.Posts)
+                .HasForeignKey(p => p.AuthorId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasIndex(p => p.AuthorId);
+            entity.HasIndex(p => p.CreatedAt);
+            entity.HasIndex(p => p.IsDeleted);
+        });
+
+        // Configure PostReaction entity
+        modelBuilder.Entity<PostReaction>(entity =>
+        {
+            entity.HasKey(pr => pr.Id);
+
+            entity.Property(pr => pr.Type)
+                .IsRequired()
+                .HasConversion<string>();
+
+            entity.HasOne(pr => pr.Post)
+                .WithMany(p => p.Reactions)
+                .HasForeignKey(pr => pr.PostId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(pr => pr.User)
+                .WithMany(u => u.PostReactions)
+                .HasForeignKey(pr => pr.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // One reaction per user per post
+            entity.HasIndex(pr => new { pr.PostId, pr.UserId }).IsUnique();
+            entity.HasIndex(pr => pr.PostId);
+            entity.HasIndex(pr => pr.UserId);
+        });
+
+        // Configure PostComment entity
+        modelBuilder.Entity<PostComment>(entity =>
+        {
+            entity.HasKey(pc => pc.Id);
+
+            entity.Property(pc => pc.Content)
+                .IsRequired()
+                .HasMaxLength(1000);
+
+            entity.HasOne(pc => pc.Post)
+                .WithMany(p => p.Comments)
+                .HasForeignKey(pc => pc.PostId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(pc => pc.Author)
+                .WithMany(u => u.PostComments)
+                .HasForeignKey(pc => pc.AuthorId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasIndex(pc => pc.PostId);
+            entity.HasIndex(pc => pc.AuthorId);
+            entity.HasIndex(pc => pc.CreatedAt);
         });
 
         // Configure Conversation entity

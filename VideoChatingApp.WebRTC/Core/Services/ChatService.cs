@@ -12,7 +12,7 @@ namespace VideoChatingApp.WebRTC.Core.Services;
 public interface IChatService
 {
     Task<(bool Success, string Message, ChatMessage? ChatMessage)> SendMessageAsync(int senderId, int receiverId, string content, string? attachmentUrl = null, string? attachmentType = null);
-    Task<(bool Success, string Message)> MarkAsReadAsync(int messageId, int userId);
+    Task<(bool Success, string Message, int SenderId)> MarkAsReadAsync(int messageId, int userId);
     Task<(bool Success, string Message)> MarkConversationAsReadAsync(int userId, int otherUserId);
     Task<(bool Success, string Message)> DeleteMessageAsync(int messageId, int userId);
     Task<List<ChatMessage>> GetConversationMessagesAsync(int userId, int otherUserId, int skip = 0, int take = 50);
@@ -95,20 +95,20 @@ public class ChatService : IChatService
         }
     }
 
-    public async Task<(bool Success, string Message)> MarkAsReadAsync(int messageId, int userId)
-    {
-        try
+        public async Task<(bool Success, string Message, int SenderId)> MarkAsReadAsync(int messageId, int userId)
         {
-            var message = await _context.ChatMessages.FindAsync(messageId);
+            try
+            {
+                var message = await _context.ChatMessages.FindAsync(messageId);
 
-            if (message == null)
-                return (false, "Message not found");
+                if (message == null)
+                    return (false, "Message not found", 0);
 
-            if (message.ReceiverId != userId)
-                return (false, "You can only mark your own messages as read");
+                if (message.ReceiverId != userId)
+                    return (false, "You can only mark your own messages as read", 0);
 
-            if (message.IsRead)
-                return (true, "Message already marked as read");
+                if (message.IsRead)
+                    return (true, "Message already marked as read", message.SenderId);
 
             message.IsRead = true;
             message.ReadAt = DateTime.UtcNow;
@@ -126,12 +126,12 @@ public class ChatService : IChatService
             await _context.SaveChangesAsync();
 
             _logger.LogInformation("Message {MessageId} marked as read by {UserId}", messageId, userId);
-            return (true, "Message marked as read");
+            return (true, "Message marked as read", message.SenderId);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error marking message {MessageId} as read", messageId);
-            return (false, "Error marking message as read");
+            return (false, "Error marking message as read", 0);
         }
     }
 

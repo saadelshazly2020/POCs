@@ -20,6 +20,9 @@ public class User
     public ICollection<Friendship> FriendshipsAsUser2 { get; set; } = new List<Friendship>();
     public ICollection<FriendshipRequest> SentRequests { get; set; } = new List<FriendshipRequest>();
     public ICollection<FriendshipRequest> ReceivedRequests { get; set; } = new List<FriendshipRequest>();
+    public ICollection<Post> Posts { get; set; } = new List<Post>();
+    public ICollection<PostComment> PostComments { get; set; } = new List<PostComment>();
+    public ICollection<PostReaction> PostReactions { get; set; } = new List<PostReaction>();
 }
 
 public class Friendship

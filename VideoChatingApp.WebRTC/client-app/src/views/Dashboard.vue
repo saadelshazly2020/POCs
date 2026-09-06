@@ -72,6 +72,11 @@
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <!-- Main Content Area -->
         <div class="lg:col-span-2">
+          <!-- Posts Tab -->
+          <div v-if="activeTab === 'posts'">
+            <PostFeed />
+          </div>
+
           <!-- Friends Tab -->
           <div v-if="activeTab === 'friends'">
             <FriendsList 
@@ -100,6 +105,7 @@
                 @close="handleCloseChat"
                 @video-call="handleVideoCallFromChat"
                 @update-unread-count="handleUpdateUnreadCount"
+                @online-status-changed="handlePeerOnlineStatusChanged"
               />
             </div>
             
@@ -231,6 +237,16 @@
             <h3 class="text-lg font-bold text-gray-800 mb-4">Quick Actions</h3>
             <div class="space-y-2">
               <button
+                @click="activeTab = 'posts'"
+                class="w-full p-3 text-left bg-gradient-to-r from-blue-50 to-indigo-50 hover:from-blue-100 hover:to-indigo-100 rounded-lg transition flex items-center gap-3"
+              >
+                <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
+                </svg>
+                <span class="font-semibold text-gray-700">View Posts Feed</span>
+              </button>
+
+              <button
                 @click="activeTab = 'chat'"
                 class="w-full p-3 text-left bg-gradient-to-r from-purple-50 to-pink-50 hover:from-purple-100 hover:to-pink-100 rounded-lg transition flex items-center gap-3"
               >
@@ -281,9 +297,12 @@ import FriendRequests from '@/components/FriendRequests.vue';
 import UserSearch from '@/components/UserSearch.vue';
 import ConversationsList from '@/components/ConversationsList.vue';
 import ChatWindow from '@/components/ChatWindow.vue';
+import PostFeed from '@/components/PostFeed.vue';
 
 const router = useRouter();
-const activeTab = ref<'friends' | 'chat' | 'requests' | 'search' | 'video'>('friends');
+type TabId = 'friends' | 'chat' | 'requests' | 'search' | 'video' | 'posts';
+
+const activeTab = ref<TabId>('posts');
 const roomIdInput = ref('');
 
 const currentUser = computed(() => authService.getUser());
@@ -355,7 +374,20 @@ const VideoIcon = () => h('svg', {
   d: 'M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z'
 }));
 
-const tabs = computed(() => [
+const PostsIcon = () => h('svg', {
+  class: 'w-5 h-5',
+  fill: 'none',
+  stroke: 'currentColor',
+  viewBox: '0 0 24 24'
+}, h('path', {
+  'stroke-linecap': 'round',
+  'stroke-linejoin': 'round',
+  'stroke-width': '2',
+  d: 'M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z'
+}));
+
+const tabs = computed<{ id: TabId; label: string; icon: any; badge: number }[]>(() => [
+  { id: 'posts', label: 'Posts', icon: PostsIcon, badge: 0 },
   { id: 'friends', label: 'Friends', icon: FriendsIcon, badge: 0 },
   { id: 'chat', label: 'Chat', icon: ChatIcon, badge: totalUnreadCount.value },
   { id: 'requests', label: 'Requests', icon: RequestsIcon, badge: pendingRequestsCount.value },
@@ -394,11 +426,16 @@ const openChatWithFriend = (friendId: number, friendName: string, isOnline: bool
   activeTab.value = 'chat';
 };
 
-const handleChatOpen = (userId: number, userName: string) => {
+const handleChatOpen = (userId: number, userName: string, isOnline: boolean) => {
   selectedChatUserId.value = userId;
   selectedChatUserName.value = userName;
-  // Find if user is online from friends list
-  selectedChatUserOnline.value = false;
+  selectedChatUserOnline.value = isOnline;
+};
+
+const handlePeerOnlineStatusChanged = (userId: number, isOnline: boolean) => {
+  if (userId === selectedChatUserId.value) {
+    selectedChatUserOnline.value = isOnline;
+  }
 };
 
 const handleCloseChat = () => {

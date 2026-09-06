@@ -51,10 +51,12 @@ public class ChatController : ControllerBase
         try
         {
             // Get SignalR connection ID from user connections dictionary
-            var connectionDict = HttpContext.RequestServices.GetService<IDictionary<int, string>>();
-            if (connectionDict != null && connectionDict.TryGetValue(request.ReceiverId, out var connectionId))
+            var connectionDict = HttpContext.RequestServices.GetService<IDictionary<int, ICollection<string>>>();
+            if (connectionDict != null &&
+                connectionDict.TryGetValue(request.ReceiverId, out var connectionIds) &&
+                connectionIds.Count > 0)
             {
-                await _hubContext.Clients.Client(connectionId).SendAsync("ReceiveMessage", new
+                await _hubContext.Clients.Clients(connectionIds.ToList()).SendAsync("ReceiveMessage", new
                 {
                     chatMessage!.Id,
                     chatMessage.SenderId,
@@ -110,10 +112,13 @@ public class ChatController : ControllerBase
         if (userId == 0)
             return Unauthorized();
 
-        var (success, message) = await _chatService.MarkAsReadAsync(messageId, userId);
+        var (success, message, senderId) = await _chatService.MarkAsReadAsync(messageId, userId);
 
         if (!success)
             return BadRequest(new { message });
+
+        // Let the sender know their message was read
+        await NotifyMessagesRead(userId, senderId, new[] { messageId });
 
         return Ok(new { message });
     }
@@ -129,6 +134,9 @@ public class ChatController : ControllerBase
 
         if (!success)
             return BadRequest(new { message });
+
+        // Let the other side know the whole conversation was read
+        await NotifyMessagesRead(userId, otherUserId, null);
 
         return Ok(new { message });
     }
@@ -146,6 +154,30 @@ public class ChatController : ControllerBase
             return BadRequest(new { message });
 
         return Ok(new { message });
+    }
+
+    private async Task NotifyMessagesRead(int readerId, int senderId, int[]? messageIds)
+    {
+        try
+        {
+            if (senderId == 0) return;
+
+            var connectionDict = HttpContext.RequestServices.GetService<IDictionary<int, ICollection<string>>>();
+            if (connectionDict != null &&
+                connectionDict.TryGetValue(senderId, out var connectionIds) &&
+                connectionIds.Count > 0)
+            {
+                await _hubContext.Clients.Clients(connectionIds.ToList()).SendAsync("MessagesRead", new
+                {
+                    readerId,
+                    messageIds = messageIds ?? Array.Empty<int>()
+                });
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to notify read receipt to user {SenderId}", senderId);
+        }
     }
 
     [HttpGet("conversation/{otherUserId}")]

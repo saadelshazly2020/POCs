@@ -11,4 +11,6 @@ public interface IUserManager
     IEnumerable<UserConnection> GetAllUsers();
     string? GetConnectionIdByUserId(string userId);
     bool UpdateUserRoom(string userId, string? roomId);
+    bool SetCallStatus(string userId, bool inCall);
+    bool IsInCall(string userId);
 }

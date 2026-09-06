@@ -1,6 +1,9 @@
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using VideoChatingApp.WebRTC.Core.Interfaces;
 using VideoChatingApp.WebRTC.Core.Models;
+using VideoChatingApp.WebRTC.Data;
 
 namespace VideoChatingApp.WebRTC.Hubs;
 
@@ -9,18 +12,39 @@ public class VideoCallHub : Hub
     private readonly IUserManager _userManager;
     private readonly IRoomManager _roomManager;
     private readonly ILogger<VideoCallHub> _logger;
-    private readonly IDictionary<int, string> _chatUserConnections;
+    private readonly IDictionary<int, ICollection<string>> _chatUserConnections;
+    private readonly IServiceScopeFactory _scopeFactory;
 
     public VideoCallHub(
         IUserManager userManager,
         IRoomManager roomManager,
         ILogger<VideoCallHub> logger,
-        IDictionary<int, string> chatUserConnections)
+        IDictionary<int, ICollection<string>> chatUserConnections,
+        IServiceScopeFactory scopeFactory)
     {
         _userManager = userManager;
         _roomManager = roomManager;
         _logger = logger;
         _chatUserConnections = chatUserConnections;
+        _scopeFactory = scopeFactory;
+    }
+
+    // Ask whether a user is currently in a call (used by the chat UI)
+    public Task<bool> GetCallStatus(int userId)
+    {
+        return Task.FromResult(_userManager.IsInCall(userId.ToString()));
+    }
+
+    // Mark the caller as busy while the call is ringing out
+    private async Task SetBusyAsync(string userId, bool busy, bool broadcast = true)
+    {
+        if (string.IsNullOrWhiteSpace(userId)) return;
+
+        _userManager.SetCallStatus(userId, busy);
+
+        if (!broadcast || !int.TryParse(userId, out var numericUserId)) return;
+
+        await Clients.All.SendAsync("UserBusyStatusChanged", numericUserId, busy);
     }
 
     // New method for chat-specific user registration (with database user ID)
@@ -29,17 +53,20 @@ public class VideoCallHub : Hub
         try
         {
             var connectionId = Context.ConnectionId;
-            
-            // Remove old connection if exists
-            var oldConnection = _chatUserConnections.FirstOrDefault(x => x.Key == userId);
-            if (oldConnection.Value != null)
+
+            // Drop this connection from any previous user entry (e.g. re-register)
+            RemoveConnectionFromAll(connectionId);
+
+            // Add the connection for this user (a user may have several connections)
+            if (!_chatUserConnections.TryGetValue(userId, out var connections))
             {
-                _chatUserConnections.Remove(oldConnection.Key);
+                connections = new HashSet<string>();
+                _chatUserConnections[userId] = connections;
             }
-            
-            // Add new connection
-            _chatUserConnections[userId] = connectionId;
-            
+            connections.Add(connectionId);
+
+            await SetUserOnlineStatusAsync(userId, true);
+
             _logger.LogInformation("Chat user {UserId} registered with connection {ConnectionId}", userId, connectionId);
             
             await Clients.Caller.SendAsync("ChatUserRegistered", userId);
@@ -113,6 +140,9 @@ public class VideoCallHub : Hub
 
             _logger.LogInformation("User {CallerUserId} calling {TargetUserId}", callerUser.UserId, targetUserId);
 
+            // Caller is busy while the call rings / is active
+            await SetBusyAsync(callerUser.UserId, true);
+
             // Notify target user about incoming call (ringing)
             await Clients.Client(targetConnectionId).SendAsync("IncomingCall", callerUser.UserId);
 
@@ -150,6 +180,10 @@ public class VideoCallHub : Hub
             _logger.LogInformation("User {CalleeUserId} accepted call from {CallerUserId}", 
                 calleeUser.UserId, callerUserId);
 
+            // Both sides are now in a call
+            await SetBusyAsync(calleeUser.UserId, true);
+            await SetBusyAsync(callerUserId, true);
+
             // Notify caller that call was accepted
             await Clients.Client(callerConnectionId).SendAsync("CallAccepted", calleeUser.UserId);
         }
@@ -182,6 +216,10 @@ public class VideoCallHub : Hub
             _logger.LogInformation("User {CalleeUserId} rejected call from {CallerUserId}", 
                 calleeUser.UserId, callerUserId);
 
+            // Nobody is in a call anymore
+            await SetBusyAsync(calleeUser.UserId, false);
+            await SetBusyAsync(callerUserId, false);
+
             // Notify caller that call was rejected
             await Clients.Client(callerConnectionId).SendAsync("CallRejected", calleeUser.UserId, reason);
         }
@@ -213,6 +251,9 @@ public class VideoCallHub : Hub
             _logger.LogInformation("User {CallerUserId} cancelled call to {TargetUserId}", 
                 callerUser.UserId, targetUserId);
 
+            await SetBusyAsync(callerUser.UserId, false);
+            await SetBusyAsync(targetUserId, false);
+
             // Notify target user that call was cancelled
             await Clients.Client(targetConnectionId).SendAsync("CallCancelled", callerUser.UserId);
         }
@@ -243,6 +284,9 @@ public class VideoCallHub : Hub
 
             _logger.LogInformation("User {UserId} ended call with {OtherUserId}", 
                 user.UserId, otherUserId);
+
+            await SetBusyAsync(user.UserId, false);
+            await SetBusyAsync(otherUserId, false);
 
             // Notify the other user that call has ended
             await Clients.Client(otherConnectionId).SendAsync("CallEnded", user.UserId);
@@ -375,6 +419,8 @@ public class VideoCallHub : Hub
 
             _logger.LogInformation("User {UserId} joined room {RoomId}", user.UserId, roomId);
 
+            await SetBusyAsync(user.UserId, true);
+
             // Notify existing participants about new user
             foreach (var participantUserId in existingParticipants)
             {
@@ -423,6 +469,8 @@ public class VideoCallHub : Hub
 
             _logger.LogInformation("User {UserId} left room {RoomId}", user.UserId, roomId);
 
+            await SetBusyAsync(user.UserId, false);
+
             // Notify other participants
             var remainingParticipants = _roomManager.GetRoomParticipants(roomId);
             foreach (var participantUserId in remainingParticipants)
@@ -458,6 +506,14 @@ public class VideoCallHub : Hub
                     await LeaveRoom(user.CurrentRoomId);
                 }
 
+                // Free the user if they were in a call
+                if (user.IsInCall)
+                {
+                    await SetBusyAsync(user.UserId, false, broadcast: false);
+                    if (int.TryParse(user.UserId, out var disconnectedUserId))
+                        await Clients.All.SendAsync("UserBusyStatusChanged", disconnectedUserId, false);
+                }
+
                 // Remove user
                 _userManager.RemoveUser(Context.ConnectionId);
 
@@ -469,16 +525,27 @@ public class VideoCallHub : Hub
             }
             
             // Handle chat user disconnection
-            var chatUser = _chatUserConnections.FirstOrDefault(x => x.Value == Context.ConnectionId);
-            if (chatUser.Key != 0)
+            var chatUserIds = _chatUserConnections
+                .Where(x => x.Value.Contains(Context.ConnectionId))
+                .Select(x => x.Key)
+                .ToList();
+
+            foreach (var chatUserId in chatUserIds)
             {
-                _logger.LogInformation("Chat user {UserId} disconnecting from connection {ConnectionId}", 
-                    chatUser.Key, Context.ConnectionId);
-                    
-                _chatUserConnections.Remove(chatUser.Key);
-                
-                // Notify all clients about user going offline
-                await Clients.All.SendAsync("UserOnlineStatusChanged", chatUser.Key, false);
+                _logger.LogInformation("Chat user {UserId} disconnecting from connection {ConnectionId}",
+                    chatUserId, Context.ConnectionId);
+
+                _chatUserConnections[chatUserId].Remove(Context.ConnectionId);
+
+                if (_chatUserConnections[chatUserId].Count == 0)
+                {
+                    _chatUserConnections.Remove(chatUserId);
+
+                    await SetUserOnlineStatusAsync(chatUserId, false);
+
+                    // Notify all clients about user going offline
+                    await Clients.All.SendAsync("UserOnlineStatusChanged", chatUserId, false);
+                }
             }
         }
         catch (Exception ex)
@@ -487,6 +554,40 @@ public class VideoCallHub : Hub
         }
 
         await base.OnDisconnectedAsync(exception);
+    }
+
+    private async Task SetUserOnlineStatusAsync(int userId, bool isOnline)
+    {
+        try
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var user = await db.Users.FirstOrDefaultAsync(u => u.Id == userId);
+            if (user == null) return;
+
+            user.IsOnline = isOnline;
+            user.LastSeen = DateTime.UtcNow;
+            await db.SaveChangesAsync();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating online status for user {UserId}", userId);
+        }
+    }
+
+    private void RemoveConnectionFromAll(string connectionId)
+    {
+        var userIds = _chatUserConnections
+            .Where(x => x.Value.Contains(connectionId))
+            .Select(x => x.Key)
+            .ToList();
+
+        foreach (var userId in userIds)
+        {
+            _chatUserConnections[userId].Remove(connectionId);
+            if (_chatUserConnections[userId].Count == 0)
+                _chatUserConnections.Remove(userId);
+        }
     }
 
     private async Task BroadcastUserList()

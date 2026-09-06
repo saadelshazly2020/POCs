@@ -1,4 +1,3 @@
-import { ref } from 'vue';
 import { authService } from './auth.service';
 
 export interface Friend {

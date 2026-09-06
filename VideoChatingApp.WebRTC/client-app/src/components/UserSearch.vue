@@ -122,7 +122,7 @@
 
 <script setup lang="ts">
 import { ref } from 'vue';
-import { friendshipService, type Friend } from '@/services/friendship.service';
+import { friendshipService } from '@/services/friendship.service';
 
 const searchQuery = ref('');
 const searchResult = ref<any>(null);

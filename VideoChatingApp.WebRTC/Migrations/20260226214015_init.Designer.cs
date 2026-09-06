@@ -11,8 +11,8 @@ using VideoChatingApp.WebRTC.Data;
 namespace VideoChatingApp.WebRTC.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20260226201957_chat")]
-    partial class chat
+    [Migration("20260226214015_init")]
+    partial class init
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -179,6 +179,112 @@ namespace VideoChatingApp.WebRTC.Migrations
                     b.ToTable("FriendshipRequests");
                 });
 
+            modelBuilder.Entity("VideoChatingApp.WebRTC.Core.Models.Post", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("AuthorId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ImageUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AuthorId");
+
+                    b.HasIndex("CreatedAt");
+
+                    b.HasIndex("IsDeleted");
+
+                    b.ToTable("Posts");
+                });
+
+            modelBuilder.Entity("VideoChatingApp.WebRTC.Core.Models.PostComment", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("AuthorId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("PostId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AuthorId");
+
+                    b.HasIndex("CreatedAt");
+
+                    b.HasIndex("PostId");
+
+                    b.ToTable("PostComments");
+                });
+
+            modelBuilder.Entity("VideoChatingApp.WebRTC.Core.Models.PostReaction", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("PostId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PostId");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("PostId", "UserId")
+                        .IsUnique();
+
+                    b.ToTable("PostReactions");
+                });
+
             modelBuilder.Entity("VideoChatingApp.WebRTC.Core.Models.User", b =>
                 {
                     b.Property<int>("Id")
@@ -310,9 +416,65 @@ namespace VideoChatingApp.WebRTC.Migrations
                     b.Navigation("Sender");
                 });
 
+            modelBuilder.Entity("VideoChatingApp.WebRTC.Core.Models.Post", b =>
+                {
+                    b.HasOne("VideoChatingApp.WebRTC.Core.Models.User", "Author")
+                        .WithMany("Posts")
+                        .HasForeignKey("AuthorId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Author");
+                });
+
+            modelBuilder.Entity("VideoChatingApp.WebRTC.Core.Models.PostComment", b =>
+                {
+                    b.HasOne("VideoChatingApp.WebRTC.Core.Models.User", "Author")
+                        .WithMany("PostComments")
+                        .HasForeignKey("AuthorId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("VideoChatingApp.WebRTC.Core.Models.Post", "Post")
+                        .WithMany("Comments")
+                        .HasForeignKey("PostId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Author");
+
+                    b.Navigation("Post");
+                });
+
+            modelBuilder.Entity("VideoChatingApp.WebRTC.Core.Models.PostReaction", b =>
+                {
+                    b.HasOne("VideoChatingApp.WebRTC.Core.Models.Post", "Post")
+                        .WithMany("Reactions")
+                        .HasForeignKey("PostId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("VideoChatingApp.WebRTC.Core.Models.User", "User")
+                        .WithMany("PostReactions")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Post");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("VideoChatingApp.WebRTC.Core.Models.Conversation", b =>
                 {
                     b.Navigation("Messages");
+                });
+
+            modelBuilder.Entity("VideoChatingApp.WebRTC.Core.Models.Post", b =>
+                {
+                    b.Navigation("Comments");
+
+                    b.Navigation("Reactions");
                 });
 
             modelBuilder.Entity("VideoChatingApp.WebRTC.Core.Models.User", b =>
@@ -320,6 +482,12 @@ namespace VideoChatingApp.WebRTC.Migrations
                     b.Navigation("FriendshipsAsUser1");
 
                     b.Navigation("FriendshipsAsUser2");
+
+                    b.Navigation("PostComments");
+
+                    b.Navigation("PostReactions");
+
+                    b.Navigation("Posts");
 
                     b.Navigation("ReceivedRequests");
 

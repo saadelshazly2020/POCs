@@ -53,9 +53,13 @@
           <span
             :class="[
               'absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white',
-              conversation.otherUser.isOnline ? 'bg-green-500' : 'bg-gray-400'
+              isBusy(conversation.otherUser.id)
+                ? 'bg-red-500'
+                : (conversation.otherUser.isOnline ? 'bg-green-500' : 'bg-gray-400')
             ]"
-            :title="conversation.otherUser.isOnline ? 'Online' : 'Offline'"
+            :title="isBusy(conversation.otherUser.id)
+              ? 'Busy - in a call'
+              : (conversation.otherUser.isOnline ? 'Online' : 'Offline')"
           />
         </div>
 
@@ -81,6 +85,13 @@
               <span v-else class="text-gray-400">No messages yet</span>
             </p>
             <span
+              v-if="isBusy(conversation.otherUser.id)"
+              class="ml-2 bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full flex-shrink-0"
+              title="In a call"
+            >
+              Busy
+            </span>
+            <span
               v-if="conversation.unreadCount > 0"
               class="ml-2 bg-blue-600 text-white text-xs font-bold px-2 py-0.5 rounded-full flex-shrink-0"
             >
@@ -96,9 +107,10 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue';
 import { chatService, type Conversation } from '@/services/chat.service';
+import { authService } from '@/services/auth.service';
 
 const emit = defineEmits<{
-  openChat: [userId: number, userName: string];
+  openChat: [userId: number, userName: string, isOnline: boolean];
 }>();
 
 defineProps<{
@@ -108,7 +120,10 @@ defineProps<{
 const conversations = ref<Conversation[]>([]);
 const loading = ref(true);
 const totalUnreadCount = ref(0);
+const busyUserIds = ref<Set<number>>(new Set());
 let signalRConnection: any = null;
+
+const isBusy = (userId: number): boolean => busyUserIds.value.has(userId);
 
 const refreshConversations = async () => {
   loading.value = true;
@@ -119,10 +134,35 @@ const refreshConversations = async () => {
   conversations.value = convos;
   totalUnreadCount.value = unreadCount;
   loading.value = false;
+  await refreshBusyStatuses();
+};
+
+const refreshBusyStatuses = async () => {
+  if (!signalRConnection) return;
+
+  const busy = new Set<number>();
+  for (const conversation of conversations.value) {
+    try {
+      if (await signalRConnection.invoke('GetCallStatus', conversation.otherUser.id)) {
+        busy.add(conversation.otherUser.id);
+      }
+    } catch (error) {
+      console.error('Failed to get call status:', error);
+    }
+  }
+  busyUserIds.value = busy;
+};
+
+const handleUserBusyStatusChanged = (userId: number, isBusyFlag: boolean) => {
+  const next = new Set(busyUserIds.value);
+  if (isBusyFlag) next.add(userId);
+  else next.delete(userId);
+  busyUserIds.value = next;
 };
 
 const openChat = (userId: number, userName: string) => {
-  emit('openChat', userId, userName);
+  const conversation = conversations.value.find(c => c.otherUser.id === userId);
+  emit('openChat', userId, userName, conversation?.otherUser.isOnline ?? false);
 };
 
 const formatTime = (dateString: string) => {
@@ -149,7 +189,7 @@ const handleUserOnlineStatusChanged = (userId: number, isOnline: boolean) => {
 };
 
 // Handle new messages from SignalR
-const handleReceiveMessage = (message: any) => {
+const handleReceiveMessage = (_message: any) => {
   // Refresh conversations to update last message and unread count
   refreshConversations();
 };
@@ -168,16 +208,22 @@ const setupSignalR = async () => {
       .build();
 
     signalRConnection.on('UserOnlineStatusChanged', handleUserOnlineStatusChanged);
+    signalRConnection.on('UserBusyStatusChanged', handleUserBusyStatusChanged);
     signalRConnection.on('ReceiveMessage', handleReceiveMessage);
 
     await signalRConnection.start();
     console.log('SignalR connected for conversations list');
     
-    // Register chat user
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
-    if (user.id) {
-      await signalRConnection.invoke('RegisterChatUser', user.id);
-    }
+    // Register chat user (re-register after every reconnect, connection id changes)
+    const register = async () => {
+      const user = authService.getUser();
+      if (user) {
+        await signalRConnection.invoke('RegisterChatUser', user.id);
+      }
+    };
+
+    signalRConnection.onreconnected(register);
+    await register();
   } catch (error) {
     console.error('Failed to setup SignalR:', error);
   }
@@ -194,6 +240,7 @@ onMounted(async () => {
 onUnmounted(async () => {
   if (signalRConnection) {
     signalRConnection.off('UserOnlineStatusChanged', handleUserOnlineStatusChanged);
+    signalRConnection.off('UserBusyStatusChanged', handleUserBusyStatusChanged);
     signalRConnection.off('ReceiveMessage', handleReceiveMessage);
     await signalRConnection.stop();
   }

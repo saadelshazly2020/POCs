@@ -19,6 +19,8 @@ public interface IAuthService
     Task<(bool Success, string Message, string? Token, int? UserId)> LoginAsync(string email, string password);
     Task<User?> GetUserByIdAsync(int userId);
     Task<User?> GetUserByEmailAsync(string email);
+    Task<bool> LogoutAsync(int userId);
+    Task<bool> SetOnlineStatusAsync(int userId, bool isOnline);
     bool VerifyPassword(string password, string hash);
     string HashPassword(string password);
     string GenerateJwtToken(User user, IConfiguration config);
@@ -115,6 +117,32 @@ public class AuthService : IAuthService
     public async Task<User?> GetUserByEmailAsync(string email)
     {
         return await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
+    }
+
+    public async Task<bool> LogoutAsync(int userId)
+    {
+        return await SetOnlineStatusAsync(userId, false);
+    }
+
+    public async Task<bool> SetOnlineStatusAsync(int userId, bool isOnline)
+    {
+        try
+        {
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId);
+            if (user == null) return false;
+
+            user.IsOnline = isOnline;
+            user.LastSeen = DateTime.UtcNow;
+
+            _context.Users.Update(user);
+            await _context.SaveChangesAsync();
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating online status for user {UserId}", userId);
+            return false;
+        }
     }
 
     public string HashPassword(string password)

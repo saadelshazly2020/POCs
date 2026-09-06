@@ -72,9 +72,10 @@ public class AuthController : ControllerBase
         if (user == null)
             return NotFound();
 
-        user.IsOnline = false;
-        // Update would happen in a real implementation
-        
+        var loggedOut = await _authService.LogoutAsync(request.UserId);
+        if (!loggedOut)
+            return BadRequest(new { message = "Failed to log out" });
+
         return Ok(new { message = "Logged out successfully" });
     }
 }

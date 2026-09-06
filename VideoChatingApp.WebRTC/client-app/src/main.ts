@@ -43,7 +43,7 @@ const router = createRouter({
 })
 
 // Navigation guards
-router.beforeEach((to, from, next) => {
+router.beforeEach((to, _from, next) => {
   const isAuthenticated = authService.isAuthenticated()
   
   // If route requires auth and user is not authenticated

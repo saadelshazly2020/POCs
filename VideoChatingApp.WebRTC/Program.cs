@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -56,11 +57,13 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IFriendshipService, FriendshipService>();
 builder.Services.AddScoped<IChatService, ChatService>();
+builder.Services.AddScoped<IPostService, PostService>();
 builder.Services.AddSingleton<IUserManager, UserManager>();
 builder.Services.AddSingleton<IRoomManager, RoomManager>();
 
-// Add SignalR user-connection mapping for chat
-builder.Services.AddSingleton<IDictionary<int, string>>(new Dictionary<int, string>());
+// Add SignalR user-connection mapping for chat (a user can have several connections/tabs)
+builder.Services.AddSingleton<IDictionary<int, ICollection<string>>>(
+    new ConcurrentDictionary<int, ICollection<string>>());
 
 // Add CORS for development
 builder.Services.AddCors(options =>

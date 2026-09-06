@@ -19,7 +19,7 @@
           <span
             :class="[
               'absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-blue-600',
-              isOnline ? 'bg-green-400' : 'bg-gray-400'
+              peerBusy ? 'bg-red-400' : (peerOnline ? 'bg-green-400' : 'bg-gray-400')
             ]"
           />
         </div>
@@ -27,23 +27,32 @@
         <div>
           <p class="font-semibold">{{ userName }}</p>
           <p class="text-xs text-blue-100">
-            {{ isOnline ? 'Online' : 'Offline' }}
+            <span :class="{ 'text-red-200 font-semibold': peerBusy }">
+              {{ peerBusy ? 'Busy - in a call' : (peerOnline ? 'Online' : 'Offline') }}
+            </span>
           </p>
         </div>
       </div>
 
       <div class="flex items-center gap-2">
-        <!-- Video Call Button -->
+        <!-- Call Button (peer to peer) -->
         <button
-          v-if="isOnline"
-          @click="$emit('videoCall', userId)"
-          class="p-2 hover:bg-white/20 rounded-lg transition"
-          title="Start video call"
+          @click="startCall"
+          :disabled="!canCall"
+          :title="callButtonTitle"
+          :class="[
+            'flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-semibold transition',
+            canCall
+              ? 'bg-white/20 hover:bg-white/30 text-white'
+              : 'bg-white/5 text-white/40 cursor-not-allowed'
+          ]"
         >
           <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
             <path d="M2 6a2 2 0 012-2h6a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V6zM14.553 7.106A1 1 0 0014 8v4a1 1 0 00.553.894l2 1A1 1 0 0018 13V7a1 1 0 00-1.447-.894l-2 1z" />
           </svg>
+          <span>{{ peerBusy ? 'Busy' : 'Call' }}</span>
         </button>
+
 
         <!-- More Options -->
         <button
@@ -104,7 +113,7 @@
                 class="text-sm underline"
                 :class="message.isSentByMe ? 'text-blue-200' : 'text-blue-600'"
               >
-                ?? Attachment
+                &#128206; Attachment
               </a>
             </div>
 
@@ -112,8 +121,8 @@
             <div class="flex items-center gap-2 mt-1 text-xs" :class="message.isSentByMe ? 'text-blue-200' : 'text-gray-500'">
               <span>{{ formatMessageTime(message.sentAt) }}</span>
               <span v-if="message.isSentByMe">
-                <span v-if="message.isRead" title="Read">??</span>
-                <span v-else title="Sent">?</span>
+                <span v-if="message.isRead" title="Read">&check;&check;</span>
+                <span v-else title="Sent">&check;</span>
               </span>
             </div>
 
@@ -195,8 +204,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, nextTick, onMounted, onUnmounted } from 'vue';
+import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue';
 import { chatService, type ChatMessage } from '@/services/chat.service';
+import { authService } from '@/services/auth.service';
 
 const props = defineProps<{
   userId: number;
@@ -208,9 +218,13 @@ const emit = defineEmits<{
   close: [];
   videoCall: [userId: number];
   updateUnreadCount: [];
+  onlineStatusChanged: [userId: number, isOnline: boolean];
+  busyStatusChanged: [userId: number, isBusy: boolean];
 }>();
 
 const messages = ref<ChatMessage[]>([]);
+const peerOnline = ref(props.isOnline ?? false);
+const peerBusy = ref(false);
 const newMessage = ref('');
 const loading = ref(false);
 const sending = ref(false);
@@ -373,9 +387,42 @@ const handleNewMessage = (message: any) => {
   }
 };
 
+const canCall = computed(() => peerOnline.value && !peerBusy.value);
+
+const callButtonTitle = computed(() => {
+  if (peerBusy.value) return `${props.userName} is in another call`;
+  if (!peerOnline.value) return `${props.userName} is offline`;
+  return `Call ${props.userName}`;
+});
+
+const startCall = () => {
+  if (!canCall.value) return;
+  emit('videoCall', props.userId);
+};
+
+const refreshPeerBusyStatus = async () => {
+  try {
+    peerBusy.value = await signalRConnection.invoke('GetCallStatus', props.userId);
+  } catch (error) {
+    console.error('Failed to get call status:', error);
+  }
+};
+
+const handleMessagesRead = (payload: { readerId: number; messageIds?: number[] }) => {
+  if (!payload || payload.readerId !== props.userId) return;
+
+  const ids = payload.messageIds ?? [];
+  for (const message of messages.value) {
+    if (ids.length === 0) {
+      if (message.senderId === getCurrentUserId()) message.isRead = true;
+    } else if (ids.includes(message.id)) {
+      message.isRead = true;
+    }
+  }
+};
+
 const getCurrentUserId = (): number => {
-  const user = JSON.parse(localStorage.getItem('user') || '{}');
-  return user.id || 0;
+  return authService.getUser()?.id ?? 0;
 };
 
 // Setup SignalR connection for real-time messages
@@ -392,20 +439,36 @@ const setupSignalR = async () => {
       .build();
 
     signalRConnection.on('ReceiveMessage', handleNewMessage);
-    
+    signalRConnection.on('MessagesRead', handleMessagesRead);
+
     signalRConnection.on('UserOnlineStatusChanged', (userId: number, isOnline: boolean) => {
       if (userId === props.userId) {
-        // Update UI or emit event to parent
-        console.log(`User ${userId} is now ${isOnline ? 'online' : 'offline'}`);
+        peerOnline.value = isOnline;
+        emit('onlineStatusChanged', userId, isOnline);
+      }
+    });
+
+    signalRConnection.on('UserBusyStatusChanged', (userId: number, isBusy: boolean) => {
+      if (userId === props.userId) {
+        peerBusy.value = isBusy;
+        emit('busyStatusChanged', userId, isBusy);
       }
     });
 
     await signalRConnection.start();
+    await refreshPeerBusyStatus();
     console.log('SignalR connected for chat');
     
-    // Register chat user
-    const currentUserId = getCurrentUserId();
-    await signalRConnection.invoke('RegisterChatUser', currentUserId);
+    // Register chat user (re-register after every reconnect, connection id changes)
+    const register = async () => {
+      const currentUserId = getCurrentUserId();
+      if (currentUserId) {
+        await signalRConnection.invoke('RegisterChatUser', currentUserId);
+      }
+    };
+
+    signalRConnection.onreconnected(register);
+    await register();
   } catch (error) {
     console.error('Failed to setup SignalR:', error);
   }
@@ -414,7 +477,15 @@ const setupSignalR = async () => {
 // Watch for user changes
 watch(() => props.userId, async () => {
   await loadMessages();
-  selectedUserId.value = props.userId;
+});
+
+watch(() => props.isOnline, (value) => {
+  peerOnline.value = value ?? false;
+});
+
+watch(() => props.userId, () => {
+  peerBusy.value = false;
+  if (signalRConnection) refreshPeerBusyStatus();
 });
 
 onMounted(async () => {
@@ -425,7 +496,9 @@ onMounted(async () => {
 onUnmounted(async () => {
   if (signalRConnection) {
     signalRConnection.off('ReceiveMessage', handleNewMessage);
+    signalRConnection.off('MessagesRead', handleMessagesRead);
     signalRConnection.off('UserOnlineStatusChanged');
+    signalRConnection.off('UserBusyStatusChanged');
     await signalRConnection.stop();
   }
 });
